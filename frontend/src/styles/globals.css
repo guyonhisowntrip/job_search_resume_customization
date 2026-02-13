@@ -1,0 +1,24 @@
+@import "tw-animate-css";
+@import "../../../templates/portfolio-v1/styles/globals.css";
+
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Satoshi", "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: #d8e8f8;
+  color: #081a2c;
+}
