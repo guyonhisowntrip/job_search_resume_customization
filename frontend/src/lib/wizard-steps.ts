@@ -1,4 +1,4 @@
-export type WizardStepId = "upload" | "edit" | "templates" | "preview" | "job-match" | "deploy"
+export type WizardStepId = "upload" | "edit" | "templates" | "preview" | "deploy"
 
 export type WizardStep = {
   id: WizardStepId
@@ -11,7 +11,6 @@ export const WIZARD_STEPS: WizardStep[] = [
   { id: "edit", label: "Edit", href: "/edit" },
   { id: "templates", label: "Template", href: "/templates" },
   { id: "preview", label: "Preview", href: "/preview" },
-  { id: "job-match", label: "Job Match", href: "/job-match" },
   { id: "deploy", label: "Deploy", href: "/deploy" }
 ]
 

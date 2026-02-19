@@ -63,8 +63,8 @@ export default function DeployPage() {
       title="Deploy Portfolio"
       description="Choose a public username and publish your portfolio. The deployed page is clean and SEO-friendly."
       actions={
-        <Link href="/job-match" className="text-sm font-semibold text-[#2b557e] hover:text-[#16395b]">
-          Back to Job Match
+        <Link href="/preview" className="text-sm font-semibold text-[#2b557e] hover:text-[#16395b]">
+          Back to Preview
         </Link>
       }
     >

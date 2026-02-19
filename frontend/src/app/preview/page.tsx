@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Suspense, lazy } from "react"
-import { Eye, Rocket, TriangleAlert } from "lucide-react"
+import { Eye, TriangleAlert } from "lucide-react"
 
 import { ResumeEditor } from "@/components/editor/resume-editor"
 import { WizardShell } from "@/components/layout/wizard-shell"
@@ -20,14 +20,9 @@ export default function PreviewPage() {
       title="Live Portfolio Preview"
       description="Edit on the left and watch the public portfolio renderer update instantly on the right."
       actions={
-        <div className="flex flex-wrap items-center gap-3">
-          <Link href="/job-match" className="text-sm font-semibold text-[#2b557e] hover:text-[#16395b]">
-            Run Job Match
-          </Link>
-          <Link href="/deploy" className="text-sm font-semibold text-[#2b557e] hover:text-[#16395b]">
-            Skip to Deploy
-          </Link>
-        </div>
+        <Link href="/deploy" className="text-sm font-semibold text-[#2b557e] hover:text-[#16395b]">
+          Continue to Deploy
+        </Link>
       }
     >
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
@@ -54,11 +49,10 @@ export default function PreviewPage() {
 
           <div className="mt-4 flex justify-end">
             <Link
-              href="/job-match"
+              href="/deploy"
               className="inline-flex h-10 items-center rounded-xl bg-[#0f4c81] px-4 text-sm font-semibold text-white"
             >
-              <Rocket className="mr-1.5 h-4 w-4" />
-              Continue to Job Match
+              Continue to Deploy
             </Link>
           </div>
         </Card>
