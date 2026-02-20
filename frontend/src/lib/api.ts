@@ -91,15 +91,8 @@ export async function deployPortfolio(payload: {
   })
 }
 
-export async function updateResume(payload: { username: string; resumeData: ResumeData }): Promise<{ status: string }> {
-  return apiFetch<{ status: string }>("/api/resume/update", {
-    method: "PUT",
-    body: JSON.stringify(payload)
-  })
-}
-
 export async function evaluateJobMatch(payload: {
-  username: string
+  resumeData: ResumeData
   jobDescription: string
 }): Promise<JobMatchEvaluateResponse> {
   return apiFetch<JobMatchEvaluateResponse>("/api/job-match/evaluate", {

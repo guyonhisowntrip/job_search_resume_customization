@@ -14,11 +14,6 @@ class ParseResponse(BaseModel):
     resumeData: ResumeData
 
 
-class UpdateRequest(BaseModel):
-    username: str
-    resumeData: ResumeData
-
-
 class DeployRequest(BaseModel):
     username: str
     template: str

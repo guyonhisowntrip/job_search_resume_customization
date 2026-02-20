@@ -19,8 +19,6 @@ type JobInputSectionProps = {
   onEvaluate: () => void
   isEvaluating: boolean
   canEvaluate: boolean
-  activeProfile: string
-  isDraftProfile: boolean
   error?: string
   maxCharacters?: number
 }
@@ -31,8 +29,6 @@ export function JobInputSection({
   onEvaluate,
   isEvaluating,
   canEvaluate,
-  activeProfile,
-  isDraftProfile,
   error,
   maxCharacters = 8000
 }: JobInputSectionProps) {
@@ -47,9 +43,7 @@ export function JobInputSection({
             Paste a full job post. The optimizer evaluates fit against your latest resume draft.
           </p>
         </div>
-        <Badge tone={isDraftProfile ? "warning" : "neutral"}>
-          {isDraftProfile ? "Draft profile" : `Profile: ${activeProfile}`}
-        </Badge>
+        <Badge tone="neutral">Current draft</Badge>
       </div>
 
       <div className="mt-4 grid gap-3">
@@ -93,4 +87,3 @@ export function JobInputSection({
     </Card>
   )
 }
-

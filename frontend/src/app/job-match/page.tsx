@@ -2,8 +2,8 @@
 
 import { AnimatePresence, motion } from "framer-motion"
 import Link from "next/link"
-import { CheckCircle2, Loader2, Sparkles, TriangleAlert } from "lucide-react"
-import { useEffect, useMemo, useState, useTransition } from "react"
+import { CheckCircle2, FileUp, Loader2, Sparkles, TriangleAlert } from "lucide-react"
+import { useMemo, useRef, useState, useTransition } from "react"
 
 import { AnalysisPanel } from "@/components/job-match/analysis-panel"
 import { ApplyImprovementModal } from "@/components/job-match/apply-improvement-modal"
@@ -13,13 +13,14 @@ import { ScoreCard } from "@/components/job-match/score-card"
 import { ApplyModalMode, JobMatchResult } from "@/components/job-match/types"
 import { WizardShell } from "@/components/layout/wizard-shell"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useWizard } from "@/context/wizard-context"
-import { evaluateJobMatch, updateResume } from "@/lib/api"
+import { inferConfidenceMap } from "@/lib/confidence"
+import { evaluateJobMatch, parseUploadedResume, uploadResume } from "@/lib/api"
 import { normalizeResumeData } from "@/lib/resume-schema"
 
-const DRAFT_PROFILE_KEY = "onetapp-job-match-draft-profile"
 const VERSION_HISTORY_KEY = "onetapp-resume-version-history"
 
 type ResumeVersionSnapshot = {
@@ -30,11 +31,6 @@ type ResumeVersionSnapshot = {
   improvedScore: number
   resumeBefore: ReturnType<typeof normalizeResumeData>
   resumeAfter: ReturnType<typeof normalizeResumeData>
-}
-
-function createDraftProfile() {
-  const random = Math.random().toString(36).slice(2, 10)
-  return `draft-${random}`
 }
 
 function JobMatchLoadingSkeleton() {
@@ -73,16 +69,6 @@ function saveSnapshot(snapshot: ResumeVersionSnapshot) {
   window.localStorage.setItem(VERSION_HISTORY_KEY, JSON.stringify(next))
 }
 
-function readDraftProfile() {
-  if (typeof window === "undefined") return ""
-  return window.localStorage.getItem(DRAFT_PROFILE_KEY) ?? ""
-}
-
-function writeDraftProfile(value: string) {
-  if (typeof window === "undefined") return
-  window.localStorage.setItem(DRAFT_PROFILE_KEY, value)
-}
-
 function formatEvaluatedTime(value?: string) {
   if (!value) return ""
 
@@ -104,47 +90,74 @@ function normalizeErrorMessage(error: unknown, fallback: string) {
   return fallback
 }
 
+function hasResumeContent(resume: ReturnType<typeof normalizeResumeData>) {
+  const hasPersonal = Boolean(resume.personal.name.trim() || resume.personal.title.trim() || resume.personal.summary.trim())
+  const hasContact = Boolean(resume.contact.email.trim() || resume.contact.phone.trim() || resume.contact.location.trim())
+  const hasStructuredSections = Boolean(
+    resume.experience.length || resume.projects.length || resume.skills.length || resume.education.length
+  )
+  return hasPersonal || hasContact || hasStructuredSections
+}
+
 export default function JobMatchPage() {
-  const { resumeData, setResumeData, username } = useWizard()
+  const { resumeData, setResumeData } = useWizard()
+  const resumeUploadInputRef = useRef<HTMLInputElement | null>(null)
 
   const [jobDescription, setJobDescription] = useState("")
   const [result, setResult] = useState<JobMatchResult | null>(null)
   const [evaluateError, setEvaluateError] = useState("")
   const [actionError, setActionError] = useState("")
   const [notice, setNotice] = useState("")
+  const [resumeUploadStatus, setResumeUploadStatus] = useState("")
+  const [resumeUploadError, setResumeUploadError] = useState("")
+  const [resumeFileName, setResumeFileName] = useState("")
+  const [isUploadingResume, setIsUploadingResume] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [modalMode, setModalMode] = useState<ApplyModalMode>(null)
   const [isApplying, setIsApplying] = useState(false)
   const [isSavingVersion, setIsSavingVersion] = useState(false)
-  const [draftProfile, setDraftProfile] = useState("")
   const [isTransitionPending, startTransition] = useTransition()
 
-  useEffect(() => {
-    if (username.trim()) {
-      return
-    }
-
-    const existing = readDraftProfile()
-    if (existing) {
-      setDraftProfile(existing)
-      return
-    }
-
-    const generated = createDraftProfile()
-    writeDraftProfile(generated)
-    setDraftProfile(generated)
-  }, [username])
-
-  const activeProfile = username.trim() || draftProfile
-  const isDraftProfile = !username.trim()
+  const hasResume = useMemo(() => hasResumeContent(resumeData), [resumeData])
   const improvedResume = useMemo(() => {
     return result ? normalizeResumeData(result.improvedResume) : null
   }, [result])
   const scoreDelta = result ? result.improvedScore - result.originalScore : 0
 
   const canEvaluate = useMemo(() => {
-    return jobDescription.trim().length > 0 && !isLoading && Boolean(activeProfile)
-  }, [jobDescription, isLoading, activeProfile])
+    return jobDescription.trim().length > 0 && !isLoading && !isUploadingResume && hasResume
+  }, [jobDescription, isLoading, isUploadingResume, hasResume])
+
+  async function handleResumeUpload(file: File | null) {
+    if (!file || isUploadingResume) {
+      return
+    }
+
+    setResumeUploadError("")
+    setResumeUploadStatus("Uploading resume")
+    setIsUploadingResume(true)
+
+    try {
+      const uploadResult = await uploadResume(file)
+      setResumeUploadStatus("Parsing and structuring content")
+
+      const parseResult = await parseUploadedResume(uploadResult.uploadId)
+      const normalized = normalizeResumeData(parseResult.resumeData)
+      setResumeData(normalized)
+      setResumeFileName(file.name)
+
+      const lowCount = Object.keys(inferConfidenceMap(normalized)).length
+      setResumeUploadStatus(
+        lowCount > 0 ? `Resume uploaded with ${lowCount} low-confidence fields.` : "Resume uploaded successfully."
+      )
+      setNotice("Resume draft refreshed for job match.")
+    } catch (uploadError) {
+      setResumeUploadError(normalizeErrorMessage(uploadError, "Resume upload failed"))
+      setResumeUploadStatus("")
+    } finally {
+      setIsUploadingResume(false)
+    }
+  }
 
   async function handleEvaluate() {
     if (!canEvaluate) {
@@ -162,8 +175,7 @@ export default function JobMatchPage() {
     setIsLoading(true)
 
     try {
-      await updateResume({ username: activeProfile, resumeData })
-      const response = await evaluateJobMatch({ username: activeProfile, jobDescription: trimmedDescription })
+      const response = await evaluateJobMatch({ resumeData, jobDescription: trimmedDescription })
       setResult({
         originalScore: response.originalScore,
         improvedScore: response.improvedScore,
@@ -192,7 +204,6 @@ export default function JobMatchPage() {
       startTransition(() => {
         setResumeData(improvedResume)
       })
-      await updateResume({ username: activeProfile, resumeData: improvedResume })
       setNotice("Improved resume applied to your editor draft.")
       setModalMode(null)
     } catch (applyError) {
@@ -225,7 +236,6 @@ export default function JobMatchPage() {
       startTransition(() => {
         setResumeData(improvedResume)
       })
-      await updateResume({ username: activeProfile, resumeData: improvedResume })
       setNotice("Saved as a new version and applied to your active draft.")
       setModalMode(null)
     } catch (saveError) {
@@ -253,21 +263,73 @@ export default function JobMatchPage() {
       }
     >
       <div className="grid gap-4">
+        <Card className="border-[#d8e3ee] bg-white/90">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-[#10243e]">Resume Source</h2>
+              <p className="mt-1 text-sm text-[#58708a]">
+                Upload a resume PDF here, or use your existing draft from the editor.
+              </p>
+            </div>
+            <Badge tone={hasResume ? "success" : "warning"}>{hasResume ? "Resume loaded" : "No resume loaded"}</Badge>
+          </div>
+
+          <input
+            ref={resumeUploadInputRef}
+            type="file"
+            accept="application/pdf"
+            className="sr-only"
+            onChange={(event) => {
+              void handleResumeUpload(event.target.files?.[0] ?? null)
+              event.currentTarget.value = ""
+            }}
+          />
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Button onClick={() => resumeUploadInputRef.current?.click()} disabled={isUploadingResume || isLoading}>
+              <FileUp className="mr-1.5 h-4 w-4" />
+              {isUploadingResume ? "Processing resume..." : "Upload Resume PDF"}
+            </Button>
+            <Link
+              href="/edit"
+              className="inline-flex h-10 items-center rounded-xl border border-[#cad2dd] px-4 text-sm font-semibold text-[#1b3a5a]"
+            >
+              Open Resume Editor
+            </Link>
+          </div>
+
+          {resumeFileName ? <p className="mt-3 text-xs text-[#607b96]">Loaded file: {resumeFileName}</p> : null}
+          {resumeUploadStatus ? (
+            <p className="mt-2 text-xs font-medium text-[#2b6a50]">{resumeUploadStatus}</p>
+          ) : null}
+          {resumeUploadError ? (
+            <div className="mt-3 inline-flex items-start gap-2 rounded-xl border border-[#f0c1b5] bg-[#fff3ef] px-3 py-2 text-sm text-[#9c412f]">
+              <TriangleAlert className="mt-0.5 h-4 w-4" />
+              <p>{resumeUploadError}</p>
+            </div>
+          ) : null}
+        </Card>
+
         <JobInputSection
           value={jobDescription}
           onChange={setJobDescription}
           onEvaluate={handleEvaluate}
           isEvaluating={isLoading}
           canEvaluate={canEvaluate}
-          activeProfile={activeProfile}
-          isDraftProfile={isDraftProfile}
           error={evaluateError}
         />
 
         {isLoading ? (
           <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-[#d9e4ef] bg-[#f7fafe] px-3 py-2 text-sm text-[#3f5f80]">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Syncing resume and evaluating job fit...
+            Evaluating job fit...
+          </div>
+        ) : null}
+
+        {!hasResume ? (
+          <div className="inline-flex w-fit items-start gap-2 rounded-xl border border-[#f3d9b9] bg-[#fff8ef] px-3 py-2 text-sm text-[#8b5b25]">
+            <TriangleAlert className="mt-0.5 h-4 w-4" />
+            <p>Upload a resume or add data in the editor before running evaluation.</p>
           </div>
         ) : null}
 
@@ -305,7 +367,7 @@ export default function JobMatchPage() {
               className="grid gap-4"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <Badge tone="neutral">Current: {activeProfile}</Badge>
+                <Badge tone="neutral">Current draft</Badge>
                 {formatEvaluatedTime(result.createdAt) ? (
                   <Badge tone="neutral">Evaluated {formatEvaluatedTime(result.createdAt)}</Badge>
                 ) : null}

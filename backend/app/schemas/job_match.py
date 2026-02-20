@@ -2,9 +2,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, AliasChoices, ConfigDict
 
+from app.schemas.resume import ResumeData
+
 
 class JobMatchEvaluateRequest(BaseModel):
-    username: str
+    resumeData: ResumeData
     jobDescription: str
 
 
