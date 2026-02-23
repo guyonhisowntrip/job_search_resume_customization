@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { evaluateJobMatchWithLangChain } from "@/lib/server/job-match"
+import { tryEvaluateJobMatchWithN8n } from "@/lib/server/n8n"
 import { storeJobMatch } from "@/lib/server/store"
 
 export const runtime = "nodejs"
@@ -38,13 +39,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ detail: "Job description is required." }, { status: 400 })
   }
 
-  let parsed
+  let parsed = await tryEvaluateJobMatchWithN8n({ resumeData, jobDescription })
+  const provider = parsed ? "n8n" : "fallback-langchain"
 
-  try {
-    parsed = await evaluateJobMatchWithLangChain(resumeData, jobDescription)
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : "Job match evaluation failed"
-    return NextResponse.json({ detail }, { status: 500 })
+  if (!parsed) {
+    try {
+      parsed = await evaluateJobMatchWithLangChain(resumeData, jobDescription)
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Job match evaluation failed"
+      return NextResponse.json({ detail }, { status: 500 })
+    }
   }
 
   const jobMatch = storeJobMatch(
@@ -62,5 +66,6 @@ export async function POST(request: Request) {
     improvedResume: parsed.improvedResume,
     analysis: parsed.analysis,
     createdAt: jobMatch.created_at,
+    provider,
   })
 }

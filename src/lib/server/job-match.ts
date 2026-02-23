@@ -410,6 +410,19 @@ function applyTruthfulnessGuard(
   }
 }
 
+export function normalizeJobMatchResult(payload: unknown, sourceResume: Record<string, unknown>): JobMatchResult {
+  const parsed = jobMatchSchema.parse(payload)
+  const truthCheckedResume = applyTruthfulnessGuard(parsed.improvedResume, sourceResume)
+
+  return {
+    ...parsed,
+    improvedResume: truthCheckedResume,
+    originalScore: clampScore(parsed.originalScore),
+    improvedScore: clampScore(Math.max(parsed.improvedScore, parsed.originalScore)),
+    analysis: parsed.analysis.trim(),
+  }
+}
+
 type GeminiGenerateContentResponse = {
   candidates?: Array<{
     content?: {
@@ -571,13 +584,5 @@ export async function evaluateJobMatchWithLangChain(
     }
   }
 
-  const truthCheckedResume = applyTruthfulnessGuard(result.improvedResume, resumeJson)
-
-  return {
-    ...result,
-    improvedResume: truthCheckedResume,
-    originalScore: clampScore(result.originalScore),
-    improvedScore: clampScore(Math.max(result.improvedScore, result.originalScore)),
-    analysis: result.analysis.trim(),
-  }
+  return normalizeJobMatchResult(result, resumeJson)
 }

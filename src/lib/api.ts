@@ -80,6 +80,7 @@ export type JobMatchEvaluateResponse = {
   improvedResume: Record<string, unknown>
   analysis: string
   createdAt: string
+  provider?: "n8n" | "fallback-langchain"
 }
 
 export async function uploadResume(file: File): Promise<UploadResponse> {

@@ -9,6 +9,7 @@ Production-grade resume-to-portfolio app.
 - Split-screen live preview using the same portfolio renderer as public pages
 - Dynamic public route: `/<username>` (SSR)
 - Loading skeletons and route-level error boundaries
+- Job Match + Resume Enhancement supports `n8n first` with automatic fallback to LangChain
 
 ## Tech Stack
 - Next.js (App Router)
@@ -38,6 +39,12 @@ UPLOAD_TOKEN_SECRET=
 NEXT_PUBLIC_API_BASE_URL=
 # Optional server-side override for API base URL.
 API_BASE_URL=
+# Optional n8n webhook for Job Match + Resume Enhancement.
+N8N_JOB_MATCH_WEBHOOK_URL=
+# Optional shared secret sent as x-workflow-secret.
+N8N_WEBHOOK_SECRET=
+# Optional timeout for n8n webhook calls in milliseconds.
+N8N_WEBHOOK_TIMEOUT_MS=15000
 ```
 
 ## Run
@@ -101,3 +108,4 @@ src/
 - Backend APIs are implemented as Next.js route handlers under `src/app/api`.
 - Template extensibility starts from `src/lib/templates.ts`.
 - Template source files live in `src/templates/`.
+- n8n import file for Job Match feature: `docs/n8n/job-match-enhancement-workflow.json`.
